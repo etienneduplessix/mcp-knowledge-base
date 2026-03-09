@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "personal-kb": {
+      "type": "local",
+      "command": ["python", "{{MCP_SERVER_PATH}}"],
+      "enabled": true,
+      "environment": {
+        "KB_PATHS": "{{PERSONAL_KB_PATH}}/knowledge,{{PERSONAL_KB_PATH}}/docs,{{PERSONAL_KB_PATH}}/config",
+        "KB_EXTENSIONS": ".md,.json",
+        "KB_MAX_SIZE_MB": "10"
+      }
+    }{{WORK_KB_CONFIG}}
+  }
+}

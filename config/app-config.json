@@ -1,0 +1,26 @@
+{
+  "project": {
+    "name": "MCP Knowledge Base Server",
+    "version": "1.0.0",
+    "description": "Custom MCP server for managing knowledge base files",
+    "author": "Development Team",
+    "license": "MIT"
+  },
+  "settings": {
+    "debug": false,
+    "log_level": "INFO",
+    "max_file_size_mb": 10,
+    "allowed_extensions": [".md", ".json"]
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "knowledge_base",
+    "pool_size": 10
+  },
+  "features": {
+    "enable_search": true,
+    "enable_caching": true,
+    "cache_ttl_seconds": 3600
+  }
+}

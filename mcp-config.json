@@ -1,0 +1,12 @@
+{
+  "knowledge_base_paths": [
+    "./knowledge",
+    "./docs",
+    "./config"
+  ],
+  "file_extensions": [
+    ".md",
+    ".json"
+  ],
+  "max_file_size_mb": 10
+}

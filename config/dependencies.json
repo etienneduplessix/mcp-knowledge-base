@@ -1,0 +1,42 @@
+{
+  "dependencies": {
+    "production": [
+      {
+        "name": "mcp",
+        "version": ">=1.0.0",
+        "purpose": "Model Context Protocol SDK"
+      },
+      {
+        "name": "markdown",
+        "version": ">=3.5.0",
+        "purpose": "Markdown processing"
+      },
+      {
+        "name": "jsonpath-ng",
+        "version": ">=1.6.0",
+        "purpose": "JSON querying"
+      }
+    ],
+    "development": [
+      {
+        "name": "pytest",
+        "version": ">=7.0.0",
+        "purpose": "Testing framework"
+      },
+      {
+        "name": "black",
+        "version": ">=23.0.0",
+        "purpose": "Code formatting"
+      }
+    ]
+  },
+  "integrations": {
+    "claude_desktop": {
+      "enabled": true,
+      "config_path": "~/.config/claude/config.json"
+    },
+    "cursor": {
+      "enabled": false
+    }
+  }
+}

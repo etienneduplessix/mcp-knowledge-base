@@ -1,0 +1,67 @@
+services:
+  mcp-kb-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-knowledge-base
+    image: mcp-kb-server:latest
+    
+    # Mount volumes for knowledge base files
+    volumes:
+      # Mount your local knowledge base directories
+      - ./knowledge:/app/knowledge:ro
+      - ./docs:/app/docs:ro
+      - ./config:/app/config:ro
+      
+      # Optional: Mount additional directories
+      # - /path/to/external/docs:/app/external-docs:ro
+    
+    # Environment variables
+    environment:
+      - KB_PATHS=/app/knowledge,/app/docs,/app/config
+      - KB_EXTENSIONS=.md,.json
+      - KB_MAX_SIZE_MB=10
+      - PYTHONUNBUFFERED=1
+    
+    # For SSE transport mode (optional)
+    # ports:
+    #   - "8000:8000"
+    
+    # Keep container running with stdio
+    stdin_open: true
+    tty: true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Optional: File watcher to auto-reload on changes (development)
+  # file-watcher:
+  #   image: python:3.11-slim
+  #   volumes:
+  #     - ./knowledge:/watch/knowledge:ro
+  #     - ./docs:/watch/docs:ro
+  #   command: |
+  #     sh -c "pip install watchdog && \
+  #            watchmedo auto-restart \
+  #            --directory=/watch \
+  #            --pattern='*.md;*.json' \
+  #            --recursive \
+  #            -- echo 'Files changed'"

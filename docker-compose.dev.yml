@@ -1,0 +1,61 @@
+version: '3.8'
+
+# Development configuration with hot-reload and debugging
+
+services:
+  mcp-kb-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: mcp-knowledge-base-dev
+    
+    # Mount source code for development
+    volumes:
+      # Mount knowledge base directories
+      - ./knowledge:/app/knowledge:ro
+      - ./docs:/app/docs:ro
+      - ./config:/app/config:ro
+      
+      # Mount source code for development
+      - ./mcp_kb_server.py:/app/mcp_kb_server.py:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+      
+      # Mount test files
+      - ./test_kb.py:/app/test_kb.py:ro
+    
+    environment:
+      - KB_PATHS=/app/knowledge,/app/docs,/app/config
+      - KB_EXTENSIONS=.md,.json
+      - KB_MAX_SIZE_MB=10
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=1
+    
+    stdin_open: true
+    tty: true
+    
+    # Override command for development
+    command: ["--transport", "stdio"]
+    
+    # Development labels
+    labels:
+      - "app.environment=development"
+      - "app.name=mcp-knowledge-base"
+
+  # Test runner service
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-kb-tests
+    volumes:
+      - ./knowledge:/app/knowledge:ro
+      - ./docs:/app/docs:ro
+      - ./config:/app/config:ro
+      - ./test_kb.py:/app/test_kb.py:ro
+    environment:
+      - KB_PATHS=/app/knowledge,/app/docs,/app/config
+    command: ["python", "test_kb.py"]
+    profiles:
+      - testing
