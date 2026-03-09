@@ -2,7 +2,7 @@
 
 A custom Model Context Protocol (MCP) server that provides tools for reading, searching, querying **AND EDITING** markdown and JSON files as a knowledge base for coding agents.
 
-## ✨ Features
+## Features
 
 ### Read Operations
 - **Read Markdown Files**: Extract content from README and documentation files
@@ -11,7 +11,7 @@ A custom Model Context Protocol (MCP) server that provides tools for reading, se
 - **Query by Type**: Filter files by type (markdown or JSON)
 - **Get File Info**: Retrieve metadata about files in the knowledge base
 
-### 🆕 Write Operations (NEW!)
+### Write Operations (NEW!)
 - **Create Files**: Add new documentation and config files
 - **Edit Files**: Find and replace text in existing files
 - **Write Files**: Overwrite entire files
@@ -148,7 +148,7 @@ mcp-knowledge-base/
 
 MIT License - See [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
 
