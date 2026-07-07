@@ -1287,22 +1287,27 @@ Be concise and provide examples.""",
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
-@click.group()
-def cli():
+@click.group(invoke_without_command=True)
+@click.pass_context
+def cli(ctx):
     """项目知识库 — 知识库管理 + Spec驱动开发的MCP服务器."""
+    if ctx.invoked_subcommand is None:
+        # Default (no subcommand): start the MCP server
+        serve_server()
 
 
 @cli.command("serve")
-@click.option("--path", "-p", multiple=True, help="Knowledge base directory paths")
-@click.option("--transport", "-t", type=click.Choice(["stdio", "sse"]), default="stdio")
-@click.option("--port", default=8000, help="Port for SSE transport")
-def serve_cmd(path, transport, port):
+def serve_cmd():
     """Start the MCP server."""
+    serve_server()
+
+
+def serve_server():
+    """Start the MCP server (used by default and serve subcommand)."""
     import asyncio
 
-    if path:
-        paths = [Path(p).resolve() for p in path]
-    elif os.environ.get("KB_PATHS"):
+    path = ()
+    if os.environ.get("KB_PATHS"):
         paths = [Path(p.strip()).resolve() for p in os.environ["KB_PATHS"].split(",")]
     else:
         paths = [Path("./specs").resolve(), Path("./knowledge").resolve(), Path("./docs").resolve()]
@@ -1312,11 +1317,7 @@ def serve_cmd(path, transport, port):
             print(f"Warning: Path does not exist: {p}")
 
     config = KnowledgeBaseConfig(paths=paths)
-
-    if transport == "stdio":
-        asyncio.run(serve_kb_server(config))
-    else:
-        print("SSE transport not yet implemented. Use stdio for now.")
+    asyncio.run(serve_kb_server(config))
 
 
 @cli.command("init")
