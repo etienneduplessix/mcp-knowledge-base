@@ -3,13 +3,13 @@
   "mcp": {
     "项目知识库": {
       "type": "local",
-      "command": ["python", "{{MCP_SERVER_PATH}}"],
+      "command": ["python", "/path/to/mcp_kb_server.py"],
       "enabled": true,
       "environment": {
-        "KB_PATHS": "{{PROJECT_ROOT}}/specs,{{PERSONAL_KB_PATH}}/knowledge,{{PERSONAL_KB_PATH}}/docs,{{PERSONAL_KB_PATH}}/config",
+        "KB_PATHS": "./specs,./knowledge,./docs,./config",
         "KB_EXTENSIONS": ".md,.json",
         "KB_MAX_SIZE_MB": "10"
       }
-    }{{WORK_KB_CONFIG}}
+    }
   }
 }
