@@ -6,27 +6,28 @@ A custom MCP server that provides tools for reading, searching, and querying
 markdown and JSON files as a knowledge base for coding agents.
 """
 
-import os
-import json
 import fnmatch
-from pathlib import Path
-from typing import AsyncIterator, Dict, List, Optional, Any
-from contextlib import asynccontextmanager
+import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
+import click
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import (
-    TextContent,
-    Tool,
-    Resource,
+    GetPromptResult,
     Prompt,
     PromptMessage,
-    GetPromptResult,
-    ServerCapabilities,
+    Resource,
+    TextContent,
+    Tool,
     ToolAnnotations,
 )
-import click
+
+from code_analyzer import CodeAnalyzer, generate_sync_diff
+from spec_generator import SpecContext, SpecGenerator, TechStack
 
 
 @dataclass
@@ -401,7 +402,7 @@ class KnowledgeBase:
 
 def create_config_from_env() -> KnowledgeBaseConfig:
     """Create configuration from environment variables."""
-    kb_paths_env = os.environ.get("KB_PATHS", "./knowledge,./docs")
+    kb_paths_env = os.environ.get("KB_PATHS", "./specs,./knowledge,./docs,./config")
     paths = [Path(p.strip()).resolve() for p in kb_paths_env.split(",")]
 
     extensions_env = os.environ.get("KB_EXTENSIONS", ".md,.json")
@@ -419,7 +420,7 @@ def create_config_from_env() -> KnowledgeBaseConfig:
 async def serve_kb_server(config: KnowledgeBaseConfig):
     """Run the MCP knowledge base server."""
     kb = KnowledgeBase(config)
-    server = Server("knowledge-base")
+    server = Server("项目知识库")
 
     @server.list_resources()
     async def list_resources() -> List[Resource]:
@@ -466,7 +467,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path"],
                 },
                 annotations=ToolAnnotations(
-                    title="Read Knowledge Base File",
+                    title="读取文件 / Read Knowledge Base File",
                     readOnlyHint=True,
                 ),
             ),
@@ -487,7 +488,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["query"],
                 },
                 annotations=ToolAnnotations(
-                    title="Search Knowledge Base",
+                    title="搜索知识库 / Search Knowledge Base",
                     readOnlyHint=True,
                 ),
             ),
@@ -506,7 +507,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     },
                 },
                 annotations=ToolAnnotations(
-                    title="List Knowledge Base Files",
+                    title="列出文件 / List Knowledge Base Files",
                     readOnlyHint=True,
                 ),
             ),
@@ -521,7 +522,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path"],
                 },
                 annotations=ToolAnnotations(
-                    title="Get File Info",
+                    title="文件信息 / Get File Info",
                     readOnlyHint=True,
                 ),
             ),
@@ -542,7 +543,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path"],
                 },
                 annotations=ToolAnnotations(
-                    title="Query JSON File",
+                    title="查询JSON / Query JSON File",
                     readOnlyHint=True,
                 ),
             ),
@@ -564,7 +565,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path", "content"],
                 },
                 annotations=ToolAnnotations(
-                    title="Create Knowledge Base File",
+                    title="创建文件 / Create Knowledge Base File",
                     readOnlyHint=False,
                 ),
             ),
@@ -586,7 +587,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path", "content"],
                 },
                 annotations=ToolAnnotations(
-                    title="Write Knowledge Base File",
+                    title="写文件 / Write Knowledge Base File",
                     readOnlyHint=False,
                 ),
             ),
@@ -603,7 +604,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path", "old_text", "new_text"],
                 },
                 annotations=ToolAnnotations(
-                    title="Edit Knowledge Base File",
+                    title="编辑文件 / Edit Knowledge Base File",
                     readOnlyHint=False,
                 ),
             ),
@@ -619,7 +620,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path", "content"],
                 },
                 annotations=ToolAnnotations(
-                    title="Append to Knowledge Base File",
+                    title="追加内容 / Append to Knowledge Base File",
                     readOnlyHint=False,
                 ),
             ),
@@ -634,7 +635,246 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                     "required": ["file_path"],
                 },
                 annotations=ToolAnnotations(
-                    title="Delete Knowledge Base File",
+                    title="删除文件 / Delete Knowledge Base File",
+                    readOnlyHint=False,
+                ),
+            ),
+            Tool(
+                name="kb_generate_business_spec",
+                description="Generate a Business Architecture Specification / 业务架构规范. "
+                "Outputs a structured markdown template covering project overview, "
+                "business domain model, core processes, use cases, stakeholders, and KPIs. "
+                "Optionally save to spec files in the project root for git versioning.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_name": {"type": "string", "description": "Name of the project"},
+                        "project_description": {
+                            "type": "string",
+                            "description": "Brief description of the project",
+                            "default": "",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Author name",
+                            "default": "",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Project version",
+                            "default": "1.0.0",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: save spec to this file (e.g. 'specs/01-business.md')",
+                            "default": "",
+                        },
+                    },
+                    "required": ["project_name"],
+                },
+                annotations=ToolAnnotations(
+                    title="业务架构规范 / Generate Business Architecture Spec",
+                    readOnlyHint=False,
+                ),
+            ),
+            Tool(
+                name="kb_generate_tech_spec",
+                description="Generate a Technical Architecture Specification / 技术架构规范. "
+                "Outputs a structured markdown template covering tech stack, system "
+                "architecture, data flow, API design, database design, security, and deployment.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_name": {"type": "string", "description": "Name of the project"},
+                        "project_description": {
+                            "type": "string",
+                            "description": "Brief project description",
+                            "default": "",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Author name",
+                            "default": "",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Project version",
+                            "default": "1.0.0",
+                        },
+                        "languages": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Programming languages used",
+                            "default": ["Python"],
+                        },
+                        "frameworks": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Frameworks and libraries",
+                            "default": [],
+                        },
+                        "databases": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Databases used",
+                            "default": [],
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: save spec to this file (e.g. 'specs/02-tech.md')",
+                            "default": "",
+                        },
+                    },
+                    "required": ["project_name"],
+                },
+                annotations=ToolAnnotations(
+                    title="技术架构规范 / Generate Technical Architecture Spec",
+                    readOnlyHint=False,
+                ),
+            ),
+            Tool(
+                name="kb_generate_coding_standards_spec",
+                description="Generate a Coding Standards Specification / 编码规范. "
+                "Outputs a structured markdown template covering language conventions, "
+                "naming, project structure, documentation, testing, and Git workflow.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_name": {"type": "string", "description": "Name of the project"},
+                        "language": {
+                            "type": "string",
+                            "description": "Primary programming language",
+                            "default": "Python",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Author name",
+                            "default": "",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Project version",
+                            "default": "1.0.0",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: save spec to this file (e.g. 'specs/03-coding.md')",
+                            "default": "",
+                        },
+                    },
+                    "required": ["project_name"],
+                },
+                annotations=ToolAnnotations(
+                    title="编码规范 / Generate Coding Standards Spec",
+                    readOnlyHint=False,
+                ),
+            ),
+            Tool(
+                name="kb_generate_module_design_spec",
+                description="Generate a Module Detailed Design Specification / 模块详细设计. "
+                "Outputs a structured markdown template covering module overview, interfaces, "
+                "data structures, core logic, dependencies, error handling, and testing strategy.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_name": {"type": "string", "description": "Name of the project"},
+                        "module_name": {
+                            "type": "string",
+                            "description": "Name of the module being designed",
+                        },
+                        "module_description": {
+                            "type": "string",
+                            "description": "Description of the module's purpose",
+                            "default": "",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Author name",
+                            "default": "",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Project version",
+                            "default": "1.0.0",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: save spec to this file (e.g. 'specs/04-module-<name>.md')",
+                            "default": "",
+                        },
+                    },
+                    "required": ["project_name", "module_name"],
+                },
+                annotations=ToolAnnotations(
+                    title="模块详细设计 / Generate Module Design Spec",
+                    readOnlyHint=False,
+                ),
+            ),
+            Tool(
+                name="kb_analyze_code",
+                description="Analyze source code and extract project structure / 分析源代码. "
+                "Scans Python/TypeScript/JS files, extracts classes, functions, API routes, "
+                "data models, dependencies, and project config.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "source_path": {
+                            "type": "string",
+                            "description": "Path to the source code directory to analyze",
+                        }
+                    },
+                    "required": ["source_path"],
+                },
+                annotations=ToolAnnotations(
+                    title="分析代码 / Analyze Source Code",
+                    readOnlyHint=True,
+                ),
+            ),
+            Tool(
+                name="kb_check_spec_drift",
+                description="Compare a spec document against source code / 检查spec漂移. "
+                "Detects missing/extra/changed items across classes, APIs, dependencies, "
+                "languages, data models, and test coverage.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "spec_path": {
+                            "type": "string",
+                            "description": "Path to the spec markdown file",
+                        },
+                        "source_path": {
+                            "type": "string",
+                            "description": "Path to the source code directory",
+                        },
+                    },
+                    "required": ["spec_path", "source_path"],
+                },
+                annotations=ToolAnnotations(
+                    title="检查漂移 / Check Spec Drift",
+                    readOnlyHint=True,
+                ),
+            ),
+            Tool(
+                name="kb_sync_spec_from_code",
+                description="Generate diff report to sync a spec with actual code / 同步spec到代码. "
+                "Analyzes source code, compares against the spec, and produces actionable "
+                "drift report showing what needs adding/removing/updating.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "spec_path": {
+                            "type": "string",
+                            "description": "Path to the spec markdown file to sync",
+                        },
+                        "source_path": {
+                            "type": "string",
+                            "description": "Path to the source code directory",
+                        },
+                    },
+                    "required": ["spec_path", "source_path"],
+                },
+                annotations=ToolAnnotations(
+                    title="同步漂移 / Sync Spec from Code",
                     readOnlyHint=False,
                 ),
             ),
@@ -728,7 +968,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                 if "error" in result:
                     return [TextContent(type="text", text=f"Error: {result['error']}")]
 
-                result_text = f"# JSON Query Result\n\n"
+                result_text = "# JSON Query Result\n\n"
                 result_text += f"**File:** {result['path']}\n"
                 if expression:
                     result_text += f"**Expression:** `{expression}`\n"
@@ -748,7 +988,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                 content = arguments["content"]
                 result = kb.create_file(file_path, content)
 
-                result_text = f"# File Created Successfully\n\n"
+                result_text = "# File Created Successfully\n\n"
                 result_text += f"**File:** {result['name']}\n"
                 result_text += f"**Path:** {result['path']}\n"
                 result_text += f"**Size:** {result['size_bytes']} bytes\n\n"
@@ -761,7 +1001,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                 content = arguments["content"]
                 result = kb.write_file(file_path, content)
 
-                result_text = f"# File Written Successfully\n\n"
+                result_text = "# File Written Successfully\n\n"
                 result_text += f"**File:** {result['name']}\n"
                 result_text += f"**Path:** {result['path']}\n"
                 result_text += f"**Size:** {result['size_bytes']} bytes\n\n"
@@ -775,7 +1015,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                 new_text = arguments["new_text"]
                 result = kb.edit_file(file_path, old_text, new_text)
 
-                result_text = f"# File Edited Successfully\n\n"
+                result_text = "# File Edited Successfully\n\n"
                 result_text += f"**File:** {result['name']}\n"
                 result_text += f"**Path:** {result['path']}\n"
                 result_text += f"**Replacements:** {result['replacements']}\n\n"
@@ -788,7 +1028,7 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                 content = arguments["content"]
                 result = kb.append_to_file(file_path, content)
 
-                result_text = f"# Content Appended Successfully\n\n"
+                result_text = "# Content Appended Successfully\n\n"
                 result_text += f"**File:** {result['name']}\n"
                 result_text += f"**Path:** {result['path']}\n"
                 result_text += f"**New Size:** {result['size_bytes']} bytes\n\n"
@@ -800,10 +1040,175 @@ async def serve_kb_server(config: KnowledgeBaseConfig):
                 file_path = arguments["file_path"]
                 result = kb.delete_file(file_path)
 
-                result_text = f"# File Deleted Successfully\n\n"
+                result_text = "# File Deleted Successfully\n\n"
                 result_text += f"**File:** {result['name']}\n"
                 result_text += f"**Path:** {result['path']}\n\n"
                 result_text += f"🗑️  {result['message']}"
+
+                return [TextContent(type="text", text=result_text)]
+
+            elif name == "kb_generate_business_spec":
+                ctx = SpecContext(
+                    project_name=arguments["project_name"],
+                    project_description=arguments.get("project_description", ""),
+                    author=arguments.get("author", ""),
+                    version=arguments.get("version", "1.0.0"),
+                )
+                gen = SpecGenerator(ctx)
+                spec = gen.business_spec()
+                file_path = arguments.get("file_path", "")
+                if file_path:
+                    kb.write_file(file_path, spec)
+                    return [TextContent(type="text", text=f"# Business Architecture Spec Saved\n\n**File:** {file_path}\n\n{spec}")]
+                return [TextContent(type="text", text=spec)]
+
+            elif name == "kb_generate_tech_spec":
+                ctx = SpecContext(
+                    project_name=arguments["project_name"],
+                    project_description=arguments.get("project_description", ""),
+                    author=arguments.get("author", ""),
+                    version=arguments.get("version", "1.0.0"),
+                )
+                stack = TechStack(
+                    languages=arguments.get("languages", ["Python"]),
+                    frameworks=arguments.get("frameworks", []),
+                    databases=arguments.get("databases", []),
+                )
+                gen = SpecGenerator(ctx)
+                spec = gen.tech_spec(stack)
+                file_path = arguments.get("file_path", "")
+                if file_path:
+                    kb.write_file(file_path, spec)
+                    return [TextContent(type="text", text=f"# Technical Architecture Spec Saved\n\n**File:** {file_path}\n\n{spec}")]
+                return [TextContent(type="text", text=spec)]
+
+            elif name == "kb_generate_coding_standards_spec":
+                ctx = SpecContext(
+                    project_name=arguments["project_name"],
+                    language=arguments.get("language", "Python"),
+                    author=arguments.get("author", ""),
+                    version=arguments.get("version", "1.0.0"),
+                )
+                gen = SpecGenerator(ctx)
+                spec = gen.coding_standards_spec()
+                file_path = arguments.get("file_path", "")
+                if file_path:
+                    kb.write_file(file_path, spec)
+                    return [TextContent(type="text", text=f"# Coding Standards Spec Saved\n\n**File:** {file_path}\n\n{spec}")]
+                return [TextContent(type="text", text=spec)]
+
+            elif name == "kb_generate_module_design_spec":
+                ctx = SpecContext(
+                    project_name=arguments["project_name"],
+                    author=arguments.get("author", ""),
+                    version=arguments.get("version", "1.0.0"),
+                )
+                gen = SpecGenerator(ctx)
+                spec = gen.module_design_spec(
+                    module_name=arguments["module_name"],
+                    module_description=arguments.get("module_description", ""),
+                )
+                file_path = arguments.get("file_path", "")
+                if file_path:
+                    kb.write_file(file_path, spec)
+                    return [TextContent(type="text", text=f"# Module Design Spec Saved\n\n**File:** {file_path}\n\n{spec}")]
+                return [TextContent(type="text", text=spec)]
+
+            elif name == "kb_analyze_code":
+                source_path = Path(arguments["source_path"])
+                if not source_path.exists():
+                    return [TextContent(type="text", text=f"Error: Source path not found: {source_path}")]
+
+                analyzer = CodeAnalyzer(source_path)
+                project = analyzer.analyze()
+
+                result_text = "# Code Analysis Report\n\n"
+                result_text += f"**Source:** {project.root}\n"
+                result_text += f"**Languages:** {', '.join(project.languages) or '(none detected)'}\n"
+                result_text += f"**Source dirs:** {', '.join(project.source_dirs[:10])}\n"
+                result_text += f"**Modules:** {len(project.modules)}\n"
+                result_text += f"**Classes:** {len(project.class_names)}\n"
+                result_text += f"**Functions:** {len(project.function_names)}\n"
+                result_text += f"**API Routes:** {len(project.api_routes)}\n"
+                result_text += f"**Data Models:** {len(project.data_models)}\n"
+                result_text += f"**Dependencies:** {len(project.dependencies)}\n"
+                result_text += f"**Test Files:** {len(project.test_files)}\n\n"
+
+                if project.modules:
+                    result_text += "## Modules\n\n"
+                    for m in project.modules[:10]:
+                        items = []
+                        if m.classes:
+                            items.append(f"{len(m.classes)} classes")
+                        if m.functions:
+                            items.append(f"{len(m.functions)} functions")
+                        result_text += f"- **{m.name}.py** — {', '.join(items)}\n"
+                    if len(project.modules) > 10:
+                        result_text += f"- ... and {len(project.modules) - 10} more\n"
+                    result_text += "\n"
+
+                if project.api_routes:
+                    result_text += "## API Routes\n\n"
+                    result_text += "| Method | Path | Handler |\n"
+                    result_text += "|--------|------|--------|\n"
+                    for r in project.api_routes[:15]:
+                        result_text += f"| {r.method} | `{r.path}` | {r.handler} |\n"
+                    result_text += "\n"
+
+                return [TextContent(type="text", text=result_text)]
+
+            elif name == "kb_check_spec_drift":
+                spec_path = Path(arguments["spec_path"])
+                source_path = Path(arguments["source_path"])
+
+                if not spec_path.exists():
+                    return [TextContent(type="text", text=f"Error: Spec file not found: {spec_path}")]
+                if not source_path.exists():
+                    return [TextContent(type="text", text=f"Error: Source path not found: {source_path}")]
+
+                analyzer = CodeAnalyzer(source_path)
+                report = analyzer.detect_drift(spec_path)
+                diff_report = generate_sync_diff(report)
+
+                return [TextContent(type="text", text=diff_report)]
+
+            elif name == "kb_sync_spec_from_code":
+                spec_path = Path(arguments["spec_path"])
+                source_path = Path(arguments["source_path"])
+
+                if not spec_path.exists():
+                    return [TextContent(type="text", text=f"Error: Spec file not found: {spec_path}")]
+                if not source_path.exists():
+                    return [TextContent(type="text", text=f"Error: Source path not found: {source_path}")]
+
+                analyzer = CodeAnalyzer(source_path)
+                report = analyzer.detect_drift(spec_path)
+
+                result_text = "# Spec Sync from Code\n\n"
+                result_text += f"**Spec:** {report.spec_path}\n"
+                result_text += f"**Code:** {report.source_path}\n"
+                result_text += f"**Drift Items:** {report.drift_count}\n\n"
+
+                if not report.items:
+                    result_text += "✅ No drift detected — spec is up to date.\n"
+                    return [TextContent(type="text", text=result_text)]
+
+                result_text += "## Drift Summary\n\n"
+                result_text += "| # | Severity | Category | Item | Detail |\n"
+                result_text += "|---|----------|----------|------|--------|\n"
+                for i, item in enumerate(report.items, 1):
+                    result_text += f"| {i} | {item.severity} | {item.category} | {item.spec_ref} | {item.detail} |\n"
+                result_text += "\n"
+
+                result_text += "## Suggested Edits\n\n"
+                result_text += "Use `kb_edit_file` to apply these changes:\n\n"
+                for item in report.items:
+                    if item.severity == "missing":
+                        result_text += f"1. **Add** `{item.spec_ref}` — {item.category} section missing\n"
+                    elif item.severity == "extra":
+                        result_text += f"1. **Review** `{item.spec_ref}` — no longer in code, consider removing\n"
+                    elif item.severity == "changed":
+                        result_text += f"1. **Update** `{item.spec_ref}` → {item.detail}\n"
 
                 return [TextContent(type="text", text=result_text)]
 
@@ -882,37 +1287,184 @@ Be concise and provide examples.""",
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
-@click.command()
-@click.option(
-    "--path",
-    "-p",
-    multiple=True,
-    help="Knowledge base directory or file path (can be used multiple times)",
-)
-@click.option(
-    "--transport",
-    "-t",
-    type=click.Choice(["stdio", "sse"]),
-    default="stdio",
-    help="Transport type (stdio or sse)",
-)
+@click.group()
+def cli():
+    """项目知识库 — 知识库管理 + Spec驱动开发的MCP服务器."""
+
+
+@cli.command("serve")
+@click.option("--path", "-p", multiple=True, help="Knowledge base directory paths")
+@click.option("--transport", "-t", type=click.Choice(["stdio", "sse"]), default="stdio")
 @click.option("--port", default=8000, help="Port for SSE transport")
-def main(path: tuple, transport: str, port: int):
-    """Run the MCP Knowledge Base Server."""
+def serve_cmd(path, transport, port):
+    """Start the MCP server."""
     import asyncio
 
-    # Create configuration
     if path:
-        # Use command-line paths
         paths = [Path(p).resolve() for p in path]
     elif os.environ.get("KB_PATHS"):
-        # Use environment variable paths (set by MCP config)
         paths = [Path(p.strip()).resolve() for p in os.environ["KB_PATHS"].split(",")]
     else:
-        # Fallback to default paths
-        paths = [Path("./knowledge").resolve(), Path("./docs").resolve()]
+        paths = [Path("./specs").resolve(), Path("./knowledge").resolve(), Path("./docs").resolve()]
 
-    # Ensure paths exist
+    for p in paths:
+        if not p.exists():
+            print(f"Warning: Path does not exist: {p}")
+
+    config = KnowledgeBaseConfig(paths=paths)
+
+    if transport == "stdio":
+        asyncio.run(serve_kb_server(config))
+    else:
+        print("SSE transport not yet implemented. Use stdio for now.")
+
+
+@cli.command("init")
+@click.option("--dir", "-d", "target_dir", default=".", help="Project directory to initialize")
+@click.option("--name", "-n", "project_name", default="", help="Project name")
+def init_cmd(target_dir: str, project_name: str):
+    """Initialize specs/ and config in a project directory."""
+    target = Path(target_dir).resolve()
+    if not target.exists():
+        click.echo(f"Error: Directory not found: {target}")
+        raise SystemExit(1)
+
+    click.echo(f"\n{'=' * 50}")
+    click.echo(f"  项目知识库 — 初始化项目")
+    click.echo(f"{'=' * 50}")
+    click.echo(f"  目标: {target}\n")
+
+    # Create directory structure
+    dirs = ["specs", "knowledge", "docs", "config"]
+    for d in dirs:
+        (target / d).mkdir(parents=True, exist_ok=True)
+        (target / d / ".gitkeep").touch()
+        click.echo(f"  ✓ 创建 {d}/")
+
+    # Server location
+    server_path = Path(__file__).resolve()
+    click.echo(f"  ✓ MCP 服务器: {server_path}")
+
+    # Specs directory gitkeep with a note
+    specs_readme = target / "specs" / "README.md"
+    if not specs_readme.exists():
+        specs_readme.write_text(f"""# Project Specifications
+
+> 项目知识库 — Spec-Driven Development
+> Project: {project_name or target.name}
+
+| # | Spec | Status |
+|---|------|--------|
+| 1 | [业务架构规范](01-business.md) | 📝 待生成 |
+| 2 | [技术架构规范](02-tech.md) | 📝 待生成 |
+| 3 | [编码规范](03-coding.md) | 📝 待生成 |
+| 4 | [模块详细设计](04-module-*.md) | 📝 待生成 |
+""")
+        click.echo(f"  ✓ 创建 specs/README.md")
+
+    # Generate opencode.json
+    opencode_config = {
+        "$schema": "https://opencode.ai/config.json",
+        "mcp": {
+            "项目知识库": {
+                "type": "local",
+                "command": ["python", str(server_path)],
+                "enabled": True,
+                "environment": {
+                    "KB_PATHS": f"{target / 'specs'},{target / 'knowledge'},{target / 'docs'},{target / 'config'}",
+                    "KB_EXTENSIONS": ".md,.json",
+                    "KB_MAX_SIZE_MB": "10",
+                },
+            }
+        },
+    }
+
+    opencode_file = target / "opencode.json"
+    if opencode_file.exists():
+        click.echo(f"  ⚠ 已存在: opencode.json（跳过，请手动合并）")
+    else:
+        opencode_file.write_text(json.dumps(opencode_config, indent=2, ensure_ascii=False) + "\n")
+        click.echo(f"  ✓ 创建 opencode.json")
+
+    # .gitignore hint
+    gitignore = target / ".gitignore"
+    kb_entries = ["# 项目知识库", "knowledge/", "config/"]
+    if gitignore.exists():
+        existing = gitignore.read_text()
+        new_entries = [e for e in kb_entries if e not in existing]
+        if new_entries:
+            with open(gitignore, "a") as f:
+                f.write("\n" + "\n".join(new_entries) + "\n")
+    else:
+        gitignore.write_text("\n".join(kb_entries) + "\n")
+
+    click.echo(f"  ✓ 更新 .gitignore")
+
+    click.echo(f"\n{'=' * 50}")
+    click.echo(f"  初始化完成!")
+    click.echo(f"{'=' * 50}")
+    click.echo(f"\n  下一步:")
+    click.echo(f"  1. 生成 spec: python {server_path} gen-specs --name '{project_name or target.name}'")
+    click.echo(f"  2. 启动: opencode")
+    click.echo(f"  3. 使用: '用项目知识库...'")
+    click.echo(f"")
+
+
+@cli.command("gen-specs")
+@click.option("--name", "-n", "project_name", required=True, help="Project name")
+@click.option("--desc", "-d", "description", default="", help="Project description")
+@click.option("--author", "-a", "author", default="", help="Author name")
+@click.option("--lang", "-l", "language", default="Python", help="Primary language")
+@click.option("--specs-dir", default="./specs", help="Specs output directory")
+def gen_specs_cmd(project_name: str, description: str, author: str, language: str, specs_dir: str):
+    """Generate initial set of spec documents."""
+    from spec_generator import SpecGenerator, SpecContext, TechStack
+
+    target = Path(specs_dir).resolve()
+    target.mkdir(parents=True, exist_ok=True)
+
+    ctx = SpecContext(
+        project_name=project_name,
+        project_description=description,
+        author=author,
+        language=language,
+    )
+    gen = SpecGenerator(ctx)
+
+    specs = [
+        ("01-business.md", gen.business_spec(), "业务架构规范"),
+        ("02-tech.md", gen.tech_spec(TechStack(languages=[language])), "技术架构规范"),
+        ("03-coding.md", gen.coding_standards_spec(), "编码规范"),
+    ]
+
+    click.echo(f"\n  生成 specs/...")
+    for filename, content, label in specs:
+        path = target / filename
+        path.write_text(content, encoding="utf-8")
+        size = len(content.encode("utf-8"))
+        click.echo(f"  ✓ {filename}  ({size} bytes) — {label}")
+
+    click.echo(f"\n  提示: 模块详细设计请用 kb_generate_module_design_spec 按需生成")
+    click.echo(f"  启动: opencode\n")
+
+
+# ── Keep backward-compatible entry point ──
+
+@click.command()
+@click.option("--path", "-p", multiple=True, help="Knowledge base directory paths")
+@click.option("--transport", "-t", type=click.Choice(["stdio", "sse"]), default="stdio")
+@click.option("--port", default=8000, help="Port for SSE transport")
+def main(path: tuple, transport: str, port: int):
+    """[DEPRECATED] Use 'python mcp_kb_server.py serve' instead."""
+    import asyncio
+
+    if path:
+        paths = [Path(p).resolve() for p in path]
+    elif os.environ.get("KB_PATHS"):
+        paths = [Path(p.strip()).resolve() for p in os.environ["KB_PATHS"].split(",")]
+    else:
+        paths = [Path("./specs").resolve(), Path("./knowledge").resolve(), Path("./docs").resolve()]
+
     for p in paths:
         if not p.exists():
             print(f"Warning: Path does not exist: {p}")
@@ -926,4 +1478,4 @@ def main(path: tuple, transport: str, port: int):
 
 
 if __name__ == "__main__":
-    main()
+    cli()

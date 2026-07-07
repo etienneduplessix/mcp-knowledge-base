@@ -56,7 +56,11 @@ htmlcov/
 tmp/
 temp/
 
-# Don't ignore knowledge base content
+# Misspelled venv
+knowlegebase/
+
+# Track knowledge base content and specs
 !knowledge/
 !docs/
 !config/
+!specs/

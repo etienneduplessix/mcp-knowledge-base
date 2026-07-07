@@ -2,7 +2,8 @@
   "knowledge_base_paths": [
     "./knowledge",
     "./docs",
-    "./config"
+    "./config",
+    "./specs"
   ],
   "file_extensions": [
     ".md",
