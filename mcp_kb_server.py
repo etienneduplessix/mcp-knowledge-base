@@ -1449,6 +1449,20 @@ def gen_specs_cmd(project_name: str, description: str, author: str, language: st
     click.echo(f"  启动: opencode\n")
 
 
+@cli.command("registry")
+@click.argument("action", type=click.Choice(["list", "show", "add", "remove", "rebuild", "init", "path"]), required=False)
+@click.argument("name", required=False)
+def registry_cmd(action: str | None, name: str | None):
+    """Manage local MCP Server registry (mcp-registry wrapper)."""
+    import subprocess
+    args = ["mcp-registry"]
+    if action:
+        args.append(action)
+    if name:
+        args.append(name)
+    subprocess.run(args)
+
+
 # ── Keep backward-compatible entry point ──
 
 @click.command()
