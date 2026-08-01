@@ -2,3 +2,6 @@ mcp>=1.0.0
 markdown>=3.5.0
 jsonpath-ng>=1.6.0
 click>=8.1.0
+# Optional: required only for SSE transport (--transport sse)
+starlette>=0.40.0
+uvicorn>=0.30.0
