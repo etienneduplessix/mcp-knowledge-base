@@ -1254,8 +1254,6 @@ def serve_cmd():
 
 def serve_server():
     """Start the MCP server (used by default and serve subcommand)."""
-    import asyncio
-
     path = ()
     if os.environ.get("KB_PATHS"):
         paths = [Path(p.strip()).resolve() for p in os.environ["KB_PATHS"].split(",")]
@@ -1267,7 +1265,7 @@ def serve_server():
             print(f"Warning: Path does not exist: {p}")
 
     config = KnowledgeBaseConfig(paths=paths)
-    asyncio.run(serve_kb_server(config))
+    serve_kb_server(config)
 
 
 @cli.command("init")
@@ -1437,7 +1435,7 @@ def main(path: tuple, transport: str, port: int):
     config = KnowledgeBaseConfig(paths=paths)
 
     if transport == "stdio":
-        asyncio.run(serve_kb_server(config))
+        serve_kb_server(config)
     else:
         try:
             serve_kb_server_sse(config, port=port)
