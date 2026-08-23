@@ -1,4 +1,4 @@
-mcp>=1.0.0
+mcp>=1.0.0,<2
 markdown>=3.5.0
 jsonpath-ng>=1.6.0
 click>=8.1.0

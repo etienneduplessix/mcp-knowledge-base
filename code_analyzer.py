@@ -316,9 +316,8 @@ def _parse_package_json(path: Path) -> dict[str, str]:
 
 def _detect_languages(root: Path) -> list[str]:
     exts = set()
-    for f in root.rglob("*"):
-        if f.is_file() and not f.name.startswith("."):
-            exts.add(f.suffix)
+    for f in _iter_project_files(root, "*"):
+        exts.add(f.suffix)
     lang_map = {
         ".py": "Python",
         ".js": "JavaScript",
@@ -342,6 +341,55 @@ def _detect_languages(root: Path) -> list[str]:
 
 
 # ── Data model detection ─────────────────────────────────────
+
+# Directory names that should be skipped during analysis (virtualenvs,
+# dependency trees, build artifacts, VCS/IDE metadata).
+_IGNORED_DIR_NAMES = {
+    "venv",
+    ".venv",
+    "env",
+    "knowlegebase",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    ".git",
+    ".idea",
+    ".vscode",
+}
+
+
+def _is_ignored_relative(rel_parts: tuple[str, ...]) -> bool:
+    """True if a relative path traverses an ignored directory."""
+    return any(
+        part in _IGNORED_DIR_NAMES or part.startswith(".")
+        for part in rel_parts
+    )
+
+
+def _iter_project_files(root: Path, pattern: str):
+    """Yield files under root matching pattern, skipping ignored/venv dirs.
+
+    A directory is treated as a virtualenv if it contains a ``pyvenv.cfg``
+    marker, so any venv is excluded regardless of its directory name.
+    """
+    root = root.resolve()
+    for f in root.rglob(pattern):
+        if not f.is_file():
+            continue
+        rel = f.relative_to(root)
+        if _is_ignored_relative(rel.parts):
+            continue
+        parent = f.parent
+        inside_venv = False
+        while parent != root:
+            if (parent / "pyvenv.cfg").is_file():
+                inside_venv = True
+                break
+            parent = parent.parent
+        if not inside_venv:
+            yield f
+
 
 _DATACLASS_DECORATORS = {"dataclass", "dataclasses.dataclass"}
 
@@ -385,19 +433,16 @@ class CodeAnalyzer:
     def analyze(self) -> ProjectStructure:
         ps = ProjectStructure(root=self.root)
 
-        # Find source directories
+        # Find source directories (skip venvs, dependency trees, etc.)
         for d in self.root.iterdir():
-            if d.is_dir() and not d.name.startswith((".", "venv", "node_modules", "__pycache__", "env")):
+            if d.is_dir() and not _is_ignored_relative((d.name,)):
                 ps.source_dirs.append(d.name)
 
         # Detect languages
         ps.languages = _detect_languages(self.root)
 
         # Parse Python files
-        for py_file in sorted(self.root.rglob("*.py")):
-            if any(p.startswith(".") or p in ("venv", "node_modules", "__pycache__")
-                   for p in py_file.relative_to(self.root).parts):
-                continue
+        for py_file in sorted(_iter_project_files(self.root, "*.py")):
             module = _parse_python_file(py_file)
             if module:
                 ps.modules.append(module)
@@ -407,9 +452,9 @@ class CodeAnalyzer:
                 ps.api_routes.extend(_detect_api_routes(py_file))
 
         # Detect test files
-        for t in self.root.rglob("test_*.py"):
+        for t in _iter_project_files(self.root, "test_*.py"):
             ps.test_files.append(str(t))
-        for t in self.root.rglob("*_test.py"):
+        for t in _iter_project_files(self.root, "*_test.py"):
             ps.test_files.append(str(t))
 
         # Parse config / dependency files
@@ -424,9 +469,7 @@ class CodeAnalyzer:
                     ps.dependencies.update(_parse_package_json(path))
 
         # Parse config JSON files
-        for cf in self.root.rglob("*.json"):
-            if "node_modules" in str(cf):
-                continue
+        for cf in _iter_project_files(self.root, "*.json"):
             try:
                 data = json.loads(cf.read_text(encoding="utf-8"))
                 ps.config_files[str(cf.relative_to(self.root))] = data

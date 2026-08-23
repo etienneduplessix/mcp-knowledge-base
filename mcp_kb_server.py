@@ -125,9 +125,15 @@ class KnowledgeBase:
     def _resolve_kb_path(self, file_path: str) -> Path:
         """Resolve a file path relative to knowledge base directories.
 
-        If the path is absolute, use it directly.
-        If the path is relative, try to resolve it against each KB base path.
-        Returns the first valid resolved path.
+        Resolution strategy:
+        1. Absolute paths are used directly.
+        2. If the first path segment matches a KB root directory name
+           (e.g. "config", "knowledge"), map to that root and join the
+           remainder. This avoids double-prefixing like
+           "config/config/app-config.json".
+        3. Otherwise try joining the relative path to each KB root,
+           preferring an existing candidate.
+        4. Fall back to the first KB root.
         """
         path = Path(file_path)
 
@@ -135,23 +141,31 @@ class KnowledgeBase:
         if path.is_absolute():
             return path.resolve()
 
-        # If relative, try to resolve against each KB base path
+        parts = list(path.parts)
+
+        # Strategy 2: first segment names a KB root directory
+        if parts:
+            first = parts[0]
+            for base_path in self.config.paths:
+                if base_path.is_dir() and base_path.name == first:
+                    candidate = (base_path / Path(*parts[1:])).resolve()
+                    if parts[1:] or candidate.exists():
+                        return candidate
+
+        # Strategy 3: join relative path against each KB root
+        candidates = []
         for base_path in self.config.paths:
             if base_path.is_dir():
-                # Try joining with this base path
-                full_path = (base_path / path).resolve()
-                # Check if this would be within the allowed paths
-                resolved_base = base_path.resolve()
-                if (
-                    full_path == resolved_base
-                    or resolved_base in full_path.parents
-                    or full_path.parent == resolved_base
-                ):
-                    return full_path
+                candidates.append((base_path / path).resolve())
 
-        # If no match found, resolve against first KB path as fallback
-        if self.config.paths:
-            return (self.config.paths[0] / path).resolve()
+        # Prefer a candidate that already exists
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+
+        # Fallback: first KB root
+        if candidates:
+            return candidates[0]
 
         # Last resort: resolve against current directory
         return path.resolve()
