@@ -2,7 +2,7 @@
 
 Complete installation and configuration guide for MCP Knowledge Base Server（项目知识库）。
 
-> **版本要求：** 本项目基于 **MCP SDK 1.x 装饰器 API**，请确保安装 `mcp>=1.0.0,<2`（已固定在 `requirements.txt` / `pyproject.toml`）。MCP 2.x 不兼容。
+> **版本要求：** 本项目基于 **MCP SDK 2.x 高层 `MCPServer` API**，请确保安装 `mcp>=2.0.0`（已固定在 `requirements.txt` / `pyproject.toml`）。MCP 1.x 低层装饰器 API 已移除。
 
 ## Table of Contents
 
@@ -273,7 +273,7 @@ VS Code（1.86+）原生支持 stdio MCP 服务器。在项目根目录 `.vscode
 ### 快速初始化新项目
 
 ```bash
-# 1. 安装依赖（MCP 1.x）
+# 1. 安装依赖（MCP 2.x）
 pip install -r requirements.txt
 
 # 2. 初始化项目目录结构（specs/ + opencode.json + .gitignore）

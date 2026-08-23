@@ -20,6 +20,8 @@
 | `kb_create_file` / `kb_write_file` | 创建/覆写文件 |
 | `kb_edit_file` / `kb_append_file` | 编辑/追加文件 |
 | `kb_delete_file` | 删除文件 |
+| `kb_restore_backup` | 从备份恢复文件 |
+| `kb_process_media` | 媒体处理（图片 OCR / 音视频转录） |
 
 ### 📐 Spec 驱动开发
 

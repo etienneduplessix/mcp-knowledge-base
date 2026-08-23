@@ -1,4 +1,4 @@
-# MCP 工具参考(12 个工具)
+# MCP 工具参考(19 个工具)
 
 所有工具注册于 `MCPServer("knowledge-base")`。参数均有类型注解,由 MCP SDK 自动生成 JSON Schema。
 
@@ -29,7 +29,7 @@ JSONPath 查询。
 - `expression`: JSONPath 表达式(缺省返回完整 JSON)
 - 返回: 匹配结果或错误信息
 
-## 写入类(5 个)
+## 写入类(6 个)
 
 ### kb_create_file(file_path: str, content: str) -> str
 创建新文件(路径相对知识库根)。
@@ -63,6 +63,39 @@ JSONPath 查询。
 - `file_path`: 媒体文件路径
 - `contact_name`: 可选联系人,用于关联媒体记录
 - 返回: 类型、提取文本/转录(按语言)、记录 JSON 路径(`media/` 目录)
+
+## Spec 驱动开发类(4 个)
+
+### kb_generate_business_spec(project_name, project_description="", author="", version="1.0.0") -> str
+生成业务架构规范。
+- 覆盖: 项目概述、业务领域模型、核心流程、用例、干系人、KPI
+
+### kb_generate_tech_spec(project_name, project_description="", author="", version="1.0.0", languages=[], frameworks=[], databases=[]) -> str
+生成技术架构规范。
+- 覆盖: 技术栈、系统架构、数据流、API 设计、数据库设计、安全、部署
+
+### kb_generate_coding_standards_spec(project_name, language="Python", author="", version="1.0.0") -> str
+生成编码规范。
+- 覆盖: 语言约定、命名、项目结构、文档、测试、Git 工作流
+
+### kb_generate_module_design_spec(project_name, module_name, module_description="", author="", version="1.0.0") -> str
+生成模块详细设计规范。
+- 覆盖: 模块概述、接口、数据结构、核心逻辑、依赖、错误处理、测试策略
+
+## 代码反向同步类(3 个)
+
+### kb_analyze_code(source_path: str) -> str
+分析源代码,提取项目结构。
+- 扫描 Python/TS/JS 文件,提取类、函数、API 路由、数据模型、依赖、语言、项目配置
+- 自动排除 `venv`/`node_modules`/`__pycache__`/`knowlegebase/` 等虚拟环境目录
+
+### kb_check_spec_drift(spec_path: str, source_path: str) -> str
+对比 spec 与代码,检测漂移。
+- 输出 missing/extra/changed 三类差异(类、API、依赖、语言、数据模型、测试覆盖)
+
+### kb_sync_spec_from_code(spec_path: str, source_path: str) -> str
+生成漂移报告,指导 spec 与代码同步。
+- 输出需新增/删除/更新的可执行差异报告
 
 ## 内建 Prompts(2 个)
 - `kb_help`: 获取工具使用帮助

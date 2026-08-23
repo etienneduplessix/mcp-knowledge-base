@@ -8,7 +8,7 @@
 
 ## 1. MCP 工具
 
-服务器注册了 17 个工具，按功能分为四类。
+服务器注册了 19 个工具（12 个知识库基础工具 + 7 个 Spec 驱动开发/代码分析工具），按功能分为五类。
 
 ### 1.1 知识库读取（只读）
 
@@ -29,8 +29,15 @@
 | `kb_edit_file` | 查找并替换文本（仅替换首个匹配） | `file_path`、`old_text`、`new_text` |
 | `kb_append_file` | 追加内容到文件末尾（不存在则创建） | `file_path`、`content` |
 | `kb_delete_file` | 删除文件 | `file_path` |
+| `kb_restore_backup` | 从备份恢复文件（`write_file`/`edit_file` 前会自动备份） | `file_path` |
 
-### 1.3 Spec 驱动开发（生成规范文档）
+### 1.3 媒体处理
+
+| 工具 | 描述 | 必填参数 |
+|------|------|---------|
+| `kb_process_media` | 处理媒体文件（图片 OCR / 音视频转录），并保存处理记录 JSON 到知识库 | `file_path`、`contact_name`（可选） |
+
+### 1.4 Spec 驱动开发（生成规范文档）
 
 | 工具 | 描述 | 可选参数 |
 |------|------|---------|
@@ -46,6 +53,16 @@
 | `kb_analyze_code` | 扫描分析源代码（AST 解析/类/函数/API 路由/数据模型/依赖/测试） | `source_path` |
 | `kb_check_spec_drift` | 对比 spec 与实际代码，检测 missing/extra/changed 漂移 | `spec_path`、`source_path` |
 | `kb_sync_spec_from_code` | 生成漂移报告，指导 spec 与代码同步 | `spec_path`、`source_path` |
+
+### 1.6 分类汇总
+
+| 分类 | 工具 |
+|------|------|
+| 知识库读取（只读） | `kb_list_files`、`kb_read_file`、`kb_search`、`kb_get_file_info`、`kb_query_json` |
+| 知识库写入（CRUD） | `kb_create_file`、`kb_write_file`、`kb_edit_file`、`kb_append_file`、`kb_delete_file`、`kb_restore_backup` |
+| 媒体处理 | `kb_process_media` |
+| Spec 驱动开发 | `kb_generate_business_spec`、`kb_generate_tech_spec`、`kb_generate_coding_standards_spec`、`kb_generate_module_design_spec` |
+| 代码反向同步 | `kb_analyze_code`、`kb_check_spec_drift`、`kb_sync_spec_from_code` |
 
 ---
 

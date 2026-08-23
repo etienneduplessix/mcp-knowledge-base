@@ -13,7 +13,7 @@
   - Python >= 3.10
 
 ### 1.2 Frameworks & Libraries
-  - mcp (>=1.0.0,<2)
+  - mcp (>=2.0.0)
   - click (>=8.1.0)
   - markdown (>=3.5.0)
   - jsonpath-ng (>=1.6.0)
