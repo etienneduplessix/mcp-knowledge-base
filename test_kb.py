@@ -4,6 +4,7 @@ Test script for MCP Knowledge Base Server
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 # Add the current directory to path
@@ -382,6 +383,107 @@ def test_drift_report_generation():
     return True
 
 
+def test_get_file_info():
+    """Test lightweight file metadata (no full content read)."""
+    print("\nTesting file info...")
+
+    config = KnowledgeBaseConfig(paths=[Path("./knowledge"), Path("./docs"), Path("./config")])
+    kb = KnowledgeBase(config)
+
+    try:
+        info = kb.get_file_info("knowledge/coding-standards.md")
+        print(f"✓ Got info for {info['name']}")
+        print(f"  - Size: {info['size_bytes']} bytes")
+        print(f"  - Type: {info['type']}")
+        return info["type"] == "text_markdown" and info["size_bytes"] > 0
+    except Exception as e:
+        print(f"✗ Error getting file info: {e}")
+        return False
+
+
+def test_backup_restore():
+    """Test automatic backups and restore for write operations."""
+    print("\nTesting backup & restore...")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        kb = KnowledgeBase(KnowledgeBaseConfig(paths=[base]))
+
+        # Create a file
+        kb.create_file("test.md", "# Original\nHello world")
+        path = base / "test.md"
+
+        # Overwrite -> backup should exist with previous content
+        kb.write_file("test.md", "# Modified\nChanged content")
+        bak = path.with_name(path.name + ".bak")
+        assert bak.exists(), "Backup file not created"
+        assert "Original" in bak.read_text(encoding="utf-8"), "Backup has wrong content"
+        print(f"✓ Write created backup: {bak.name}")
+
+        # Restore -> original content back
+        kb.restore_from_backup("test.md")
+        assert "Original" in path.read_text(encoding="utf-8")
+        print("✓ Restore returned original content")
+
+        # Delete -> still recoverable via backup
+        kb.delete_file("test.md")
+        assert not path.exists(), "File not deleted"
+        assert bak.exists(), "Backup lost after delete"
+        kb.restore_from_backup("test.md")
+        assert path.exists(), "Restore after delete failed"
+        print("✓ Delete + restore recovered deleted file")
+
+        return True
+
+
+def test_cache_invalidation():
+    """Test that search reflects edits (index cache invalidation)."""
+    print("\nTesting search cache invalidation...")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        kb = KnowledgeBase(KnowledgeBaseConfig(paths=[base]))
+
+        kb.create_file("test.md", "# Doc\nNo matching content here")
+        assert kb.search("needle") == [], "Search should find nothing initially"
+
+        # Edit the file to add the term
+        kb.edit_file("test.md", "No matching content here", "needle found in content")
+        results = kb.search("needle")
+        assert len(results) == 1, "Search should find the edited file"
+        assert results[0]["matches_count"] >= 1
+        print(f"✓ Search reflected edit ({results[0]['matches_count']} match(es))")
+
+        return True
+
+
+def test_process_media():
+    """Test media processing integration (unsupported/CLI guard cases)."""
+    print("\nTesting media processing integration...")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        kb = KnowledgeBase(KnowledgeBaseConfig(paths=[base]))
+
+        # Unsupported extension -> structured error
+        bad = base / "notes.txt"
+        bad.write_text("hi", encoding="utf-8")
+        result = kb.process_media(str(bad))
+        assert result["success"] is False, "Unsupported type should fail"
+        assert "error" in result
+        print(f"✓ Unsupported type handled: {result['error']}")
+
+        # Image without pytesseract -> graceful degradation message
+        img = base / "photo.png"
+        img.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+        result = kb.process_media(str(img))
+        assert result["success"] is False
+        assert "error" in result
+        print(f"✓ Image processed with graceful degradation: {result['error']}")
+
+        return True
+
+
 def main():
     """Run all tests."""
     print("=" * 50)
@@ -408,6 +510,10 @@ def main():
         ("Dependency Detection", test_code_analyzer_dependency_detection),
         ("Drift Detection", test_drift_detection),
         ("Drift Report", test_drift_report_generation),
+        ("Get File Info", test_get_file_info),
+        ("Backup & Restore", test_backup_restore),
+        ("Cache Invalidation", test_cache_invalidation),
+        ("Media Processing", test_process_media),
     ]
 
     results = []
