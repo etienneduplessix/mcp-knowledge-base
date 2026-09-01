@@ -64,3 +64,6 @@ knowlegebase/
 !docs/
 !config/
 !specs/
+
+# 知识库编辑自动备份
+*.bak
