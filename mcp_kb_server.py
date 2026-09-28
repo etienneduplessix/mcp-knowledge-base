@@ -10,6 +10,7 @@ import fnmatch
 import functools
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -1262,7 +1263,8 @@ def serve_server():
 
     for p in paths:
         if not p.exists():
-            print(f"Warning: Path does not exist: {p}")
+            # stderr: stdout is the stdio JSON-RPC channel and must stay clean
+            print(f"Warning: Path does not exist: {p}", file=sys.stderr)
 
     config = KnowledgeBaseConfig(paths=paths)
     serve_kb_server(config)
@@ -1430,7 +1432,8 @@ def main(path: tuple, transport: str, port: int):
 
     for p in paths:
         if not p.exists():
-            print(f"Warning: Path does not exist: {p}")
+            # stderr: stdout is the stdio JSON-RPC channel and must stay clean
+            print(f"Warning: Path does not exist: {p}", file=sys.stderr)
 
     config = KnowledgeBaseConfig(paths=paths)
 
