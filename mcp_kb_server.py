@@ -9,6 +9,7 @@ markdown and JSON files as a knowledge base for coding agents.
 import os
 import json
 import fnmatch
+import sys
 from pathlib import Path
 from typing import AsyncIterator, Dict, List, Optional, Any
 from contextlib import asynccontextmanager
@@ -915,14 +916,16 @@ def main(path: tuple, transport: str, port: int):
     # Ensure paths exist
     for p in paths:
         if not p.exists():
-            print(f"Warning: Path does not exist: {p}")
+            # stdout is reserved for JSON-RPC messages in stdio mode, so any
+            # diagnostic has to go to stderr or it breaks the client handshake.
+            print(f"Warning: Path does not exist: {p}", file=sys.stderr)
 
     config = KnowledgeBaseConfig(paths=paths)
 
     if transport == "stdio":
         asyncio.run(serve_kb_server(config))
     else:
-        print("SSE transport not yet implemented. Use stdio for now.")
+        print("SSE transport not yet implemented. Use stdio for now.", file=sys.stderr)
 
 
 if __name__ == "__main__":
