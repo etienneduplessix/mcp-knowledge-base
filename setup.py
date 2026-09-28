@@ -3,7 +3,8 @@
 MCP Knowledge Base Server - Interactive Setup Script
 
 This script helps you configure the MCP Knowledge Base Server for use with
-multiple AI tools: Claude Desktop, Claude Code, Cursor, and OpenCode.
+multiple AI tools: Claude Desktop, Claude Code, Cursor, OpenCode, and VS Code
+(GitHub Copilot).
 
 Usage:
     python setup.py              # Interactive setup
@@ -174,6 +175,7 @@ class SetupWizard:
             "claude_code": self._ask_yes_no("Configure for Claude Code?", default=False),
             "cursor": self._ask_yes_no("Configure for Cursor?", default=False),
             "opencode": self._ask_yes_no("Configure for OpenCode?", default=False),
+            "vscode": self._ask_yes_no("Configure for VS Code (GitHub Copilot)?", default=False),
         }
 
         # Create config
@@ -240,6 +242,9 @@ class SetupWizard:
 
         if self.config.tools["opencode"]:
             self._setup_opencode()
+
+        if self.config.tools["vscode"]:
+            self._setup_vscode()
 
         print()
         print("=" * 70)
@@ -488,6 +493,58 @@ class SetupWizard:
 
         print(f"  ✓ Config written to: {config_file}")
         print(f"  ✓ Configured MCP servers: {', '.join(mcp_config.keys())}")
+
+    def _setup_vscode(self) -> None:
+        """Configure for VS Code (GitHub Copilot)."""
+        print("\nConfiguring VS Code (GitHub Copilot)...")
+
+        # VS Code uses workspace-level MCP configuration in .vscode/settings.json
+        config_file = Path.cwd() / ".vscode" / "settings.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+
+        mcp_servers = {
+            "personal-kb": {
+                "type": "stdio",
+                "command": "python",
+                "args": [str(self.config.mcp_server_path)],
+                "env": {
+                    "KB_PATHS": self._get_kb_paths_string(self.config.personal_kb_path),
+                    "KB_EXTENSIONS": ",".join(self.config.file_extensions),
+                    "KB_MAX_SIZE_MB": str(self.config.max_file_size_mb),
+                },
+            }
+        }
+
+        if self.config.work_kb_path:
+            mcp_servers["work-kb"] = {
+                "type": "stdio",
+                "command": "python",
+                "args": [str(self.config.mcp_server_path)],
+                "env": {
+                    "KB_PATHS": self._get_kb_paths_string(self.config.work_kb_path),
+                    "KB_EXTENSIONS": ",".join(self.config.file_extensions),
+                    "KB_MAX_SIZE_MB": str(self.config.max_file_size_mb),
+                },
+            }
+
+        # Merge with existing settings to preserve other user configuration
+        existing = {}
+        if config_file.exists():
+            with open(config_file, "r") as f:
+                existing = json.load(f)
+            backup_file = config_file.with_suffix(".json.backup")
+            with open(backup_file, "w") as f:
+                json.dump(existing, f, indent=2)
+            print(f"  ✓ Backed up existing settings to {backup_file}")
+
+        existing["mcp"] = {"servers": mcp_servers}
+
+        with open(config_file, "w") as f:
+            json.dump(existing, f, indent=2)
+
+        print(f"  ✓ Config written to: {config_file}")
+        print(f"  ✓ Configured MCP servers: {', '.join(mcp_servers.keys())}")
+        print("  ✓ Restart VS Code (or run 'Developer: Reload Window') to load the servers")
 
 
 def main():

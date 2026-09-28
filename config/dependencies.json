@@ -3,40 +3,75 @@
     "production": [
       {
         "name": "mcp",
-        "version": ">=1.0.0",
-        "purpose": "Model Context Protocol SDK"
+        "version": ">=2.0.0",
+        "purpose": "Model Context Protocol SDK（2.x 高层 MCPServer API）"
       },
       {
         "name": "markdown",
         "version": ">=3.5.0",
-        "purpose": "Markdown processing"
+        "purpose": "Markdown 处理"
       },
       {
         "name": "jsonpath-ng",
         "version": ">=1.6.0",
-        "purpose": "JSON querying"
+        "purpose": "JSONPath 查询（kb_query_json）"
+      },
+      {
+        "name": "click",
+        "version": ">=8.1.0",
+        "purpose": "CLI 命令框架（serve/init/gen-specs/registry）"
       }
     ],
     "development": [
       {
         "name": "pytest",
         "version": ">=7.0.0",
-        "purpose": "Testing framework"
+        "purpose": "测试框架"
+      },
+      {
+        "name": "pytest-asyncio",
+        "version": ">=0.21.0",
+        "purpose": "异步测试支持"
       },
       {
         "name": "black",
         "version": ">=23.0.0",
-        "purpose": "Code formatting"
+        "purpose": "代码格式化（line-length=100）"
+      },
+      {
+        "name": "ruff",
+        "version": ">=0.1.0",
+        "purpose": "代码检查（E/F/W/I 规则）"
       }
     ]
   },
+  "python": {
+    "requires": ">=3.10",
+    "entry_points": {
+      "kb": "mcp_kb_server:cli",
+      "kb-serve": "mcp_kb_server:main"
+    }
+  },
   "integrations": {
+    "vscode": {
+      "enabled": true,
+      "config_path": ".vscode/mcp.json"
+    },
+    "opencode": {
+      "enabled": true,
+      "config_path": "config/opencode.json.template"
+    },
     "claude_desktop": {
       "enabled": true,
-      "config_path": "~/.config/claude/config.json"
+      "config_path": "config/claude-desktop-config.json.template"
+    },
+    "claude_code": {
+      "enabled": true,
+      "config_path": "config/claude-code-mcp.json.template"
     },
     "cursor": {
-      "enabled": false
+      "enabled": true,
+      "config_path": "config/cursor-mcp.json.template"
     }
   }
 }

@@ -1,0 +1,32 @@
+# ============================================================
+# .gitattributes — 统一行尾符规范（LF）
+#
+# 背景：仓库曾因 CRLF/LF 行尾符混用产生全文件噪音 diff
+# （3988 行假差异，无实质内容）。本文件从根源上解决该问题：
+#   - 仓库内所有文本文件统一以 LF 存储
+#   - 避免跨平台（Windows/macOS/Linux）检出时行尾符漂移
+# ============================================================
+
+# 所有文本文件：仓库内规范化为 LF
+* text=auto eol=lf
+
+# 二进制文件（禁止行尾转换）
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.zip    binary
+*.tar.gz binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
+*.pyc    binary
+
+# 脚本类文件显式声明 LF（Linux 规范）
+*.py  text eol=lf
+*.sh  text eol=lf
+Makefile   text eol=lf
+Dockerfile text eol=lf

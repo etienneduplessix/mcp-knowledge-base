@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "知识库": {
+      "type": "local",
+      "command": ["/media/zhouzhk/Data/work/mcp-knowledge-base/venv/bin/python", "/media/zhouzhk/Data/work/mcp-knowledge-base/mcp_kb_server.py", "serve"],
+      "enabled": true,
+      "environment": {
+        "KB_PATHS": "/media/zhouzhk/Data/work/mcp-knowledge-base/specs,/media/zhouzhk/Data/work/mcp-knowledge-base/knowledge,/media/zhouzhk/Data/work/mcp-knowledge-base/docs,/media/zhouzhk/Data/work/mcp-knowledge-base/config",
+        "KB_EXTENSIONS": ".md,.json",
+        "KB_MAX_SIZE_MB": "10"
+      }
+    }
+  }
+}

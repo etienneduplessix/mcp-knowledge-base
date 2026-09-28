@@ -1,26 +1,40 @@
 {
   "project": {
-    "name": "MCP Knowledge Base Server",
+    "name": "项目知识库 / MCP Knowledge Base Server",
     "version": "1.0.0",
-    "description": "Custom MCP server for managing knowledge base files",
+    "description": "基于 Model Context Protocol 的知识库服务器，提供知识管理、Spec 驱动开发和代码反向同步能力",
     "author": "Development Team",
-    "license": "MIT"
+    "license": "MIT",
+    "server_name": "项目知识库",
+    "entry_point": "mcp_kb_server.py"
   },
   "settings": {
     "debug": false,
     "log_level": "INFO",
     "max_file_size_mb": 10,
-    "allowed_extensions": [".md", ".json"]
+    "allowed_extensions": [".md", ".json"],
+    "kb_paths": ["./specs", "./knowledge", "./docs", "./config"]
   },
-  "database": {
-    "host": "localhost",
-    "port": 5432,
-    "name": "knowledge_base",
-    "pool_size": 10
+  "transport": {
+    "default": "stdio",
+    "supported": ["stdio"]
+  },
+  "tools": {
+    "read": ["kb_list_files", "kb_read_file", "kb_search", "kb_get_file_info", "kb_query_json"],
+    "write": ["kb_create_file", "kb_write_file", "kb_edit_file", "kb_append_file", "kb_delete_file"],
+    "spec": [
+      "kb_generate_business_spec",
+      "kb_generate_tech_spec",
+      "kb_generate_coding_standards_spec",
+      "kb_generate_module_design_spec"
+    ],
+    "sync": ["kb_analyze_code", "kb_check_spec_drift", "kb_sync_spec_from_code"]
   },
   "features": {
     "enable_search": true,
     "enable_caching": true,
-    "cache_ttl_seconds": 3600
+    "cache_ttl_seconds": 3600,
+    "spec_driven_development": true,
+    "code_reverse_sync": true
   }
 }

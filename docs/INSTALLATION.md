@@ -1,13 +1,16 @@
 # Installation Guide
 
-Complete installation and configuration guide for MCP Knowledge Base Server.
+Complete installation and configuration guide for MCP Knowledge Base Server（项目知识库）。
+
+> **版本要求：** 本项目基于 **MCP SDK 2.x 高层 `MCPServer` API**，请确保安装 `mcp>=2.0.0`（已固定在 `requirements.txt` / `pyproject.toml`）。MCP 1.x 低层装饰器 API 已移除。
 
 ## Table of Contents
 
 1. [Quick Setup (Recommended)](#quick-setup-recommended)
 2. [Manual Installation](#manual-installation)
 3. [AI Tool Configuration](#ai-tool-configuration)
-4. [Troubleshooting](#troubleshooting)
+4. [VS Code 集成](#vs-code-集成)
+5. [Troubleshooting](#troubleshooting)
 
 ## Quick Setup (Recommended)
 
@@ -240,9 +243,52 @@ The MCP server uses these environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `KB_PATHS` | Comma-separated list of knowledge base directories | `./knowledge,./docs` |
+| `KB_PATHS` | Comma-separated list of knowledge base directories | `./specs,./knowledge,./docs,./config` |
 | `KB_EXTENSIONS` | Comma-separated list of file extensions | `.md,.json` |
 | `KB_MAX_SIZE_MB` | Maximum file size in MB | `10` |
+
+## VS Code 集成
+
+VS Code（1.86+）原生支持 stdio MCP 服务器。在项目根目录 `.vscode/mcp.json` 中添加：
+
+```json
+{
+  "servers": {
+    "项目知识库": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["${workspaceFolder}/mcp_kb_server.py"],
+      "env": {
+        "KB_PATHS": "${workspaceFolder}/specs,${workspaceFolder}/knowledge,${workspaceFolder}/docs,${workspaceFolder}/config",
+        "KB_EXTENSIONS": ".md,.json",
+        "KB_MAX_SIZE_MB": "10"
+      }
+    }
+  }
+}
+```
+
+配置后重启 VS Code（或重载窗口），即可在 Copilot Chat 中使用"项目知识库"服务器的全部工具。
+
+> ⚠️ **`${workspaceFolder}` 只能用于项目级配置**。若把它写在用户级 `mcp.json`（`%APPDATA%\Code\User\mcp.json`），在没有打开文件夹的窗口启动服务器会报
+> `CodeExpectedError: 无法解析变量 workspaceFolder。请打开一个文件夹。`
+> 用户级配置请只用绝对路径；需要项目内相对路径时放到项目级 `.vscode/mcp.json`。
+
+### 快速初始化新项目
+
+```bash
+# 1. 安装依赖（MCP 2.x）
+pip install -r requirements.txt
+
+# 2. 初始化项目目录结构（specs/ + opencode.json + .gitignore）
+python mcp_kb_server.py init -d . -n "你的项目名"
+
+# 3. 批量生成初始规范文档
+python mcp_kb_server.py gen-specs --name "你的项目名" --desc "项目简介" --author "你"
+
+# 4. 启动 MCP 服务器（stdio）
+python mcp_kb_server.py serve
+```
 
 ## Troubleshooting
 
@@ -297,12 +343,18 @@ The MCP server uses these environment variables:
 Test the MCP server directly:
 
 ```bash
-# List files
-python mcp_kb_server.py --path ~/knowledge-base --list
+# 运行测试套件（Windows 需先设置 UTF-8 编码）
+$env:PYTHONIOENCODING='utf-8'
+python test_kb.py
 
-# Read a file
-echo '{"file_path": "test.md"}' | python mcp_kb_server.py --path ~/knowledge-base
+# 启动 MCP 服务器（stdio）
+python mcp_kb_server.py serve
+
+# 查看 CLI 帮助
+python mcp_kb_server.py --help
 ```
+
+> **注意：** 旧式 `--path` / `--list` 参数已废弃，请使用 `serve`、`init`、`gen-specs`、`registry` 子命令。
 
 ## Getting Help
 
@@ -316,10 +368,11 @@ echo '{"file_path": "test.md"}' | python mcp_kb_server.py --path ~/knowledge-bas
 1. **Use absolute paths** in configuration files to avoid confusion
 2. **Organize your knowledge base**:
    ```
-   ~/knowledge-base/
-   ├── docs/           # Documentation
-   ├── knowledge/      # Knowledge articles
-   └── config/         # Configuration files
+   my-project/
+   ├── specs/           # 项目规范（Spec 驱动开发）
+   ├── knowledge/       # Knowledge articles
+   ├── docs/            # Documentation
+   └── config/          # Configuration files
    ```
 3. **Keep files under 10MB** for best performance
 4. **Use consistent naming** with lowercase and hyphens
