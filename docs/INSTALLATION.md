@@ -270,6 +270,10 @@ VS Code（1.86+）原生支持 stdio MCP 服务器。在项目根目录 `.vscode
 
 配置后重启 VS Code（或重载窗口），即可在 Copilot Chat 中使用"项目知识库"服务器的全部工具。
 
+> ⚠️ **`${workspaceFolder}` 只能用于项目级配置**。若把它写在用户级 `mcp.json`（`%APPDATA%\Code\User\mcp.json`），在没有打开文件夹的窗口启动服务器会报
+> `CodeExpectedError: 无法解析变量 workspaceFolder。请打开一个文件夹。`
+> 用户级配置请只用绝对路径；需要项目内相对路径时放到项目级 `.vscode/mcp.json`。
+
 ### 快速初始化新项目
 
 ```bash

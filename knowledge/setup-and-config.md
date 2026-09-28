@@ -42,6 +42,18 @@ python mcp_kb_server.py
 - `env.KB_PATHS`: 知识库根路径,逗号分隔,建议用绝对路径
 - 本项目建议:`KB_PATHS` 指向 `knowledge`、`docs`、`config` 三个目录
 
+### ⚠️ 用户级 mcp.json 不要用 `${workspaceFolder}`
+
+`${workspaceFolder}` 只在**已打开文件夹**的窗口中才能解析。若把它写在**用户级** `mcp.json`(`%APPDATA%\Code\User\mcp.json`),那么在无文件夹的窗口启动该服务器会直接失败:
+
+```
+CodeExpectedError: 无法解析变量 workspaceFolder。请打开一个文件夹。
+```
+
+推荐做法:
+- **用户级 `mcp.json`**:只写**绝对路径**,保证任意窗口(含无文件夹窗口)都能启动。
+- **项目级 `.vscode/mcp.json`**:需要检索当前项目自己的 `specs/knowledge/docs/config` 时,把 `${workspaceFolder}/...` 写在项目级配置里 —— 它只在打开该文件夹时加载,不存在解析失败问题。
+
 ### 示例(Claude Desktop 风格)
 ```json
 {
